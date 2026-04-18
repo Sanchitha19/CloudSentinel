@@ -3,8 +3,9 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceDot, PieChart, Pie, Cell, Legend
 } from 'recharts';
 import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, Server, Zap, CheckCircle, XCircle } from 'lucide-react';
-import { dashboardApi, CostSummary, Anomaly, Recommendation } from '../api/dashboard';
-import { CostDataPoint, CloudResource } from '../types/provider';
+import { dashboardApi } from '../api/dashboard';
+import type { CostSummary, Anomaly, Recommendation } from '../api/dashboard';
+import type { ServiceCost, CostDataPoint, CloudResource } from '../types/provider';
 import { RefreshContext } from '../components/Layout/Layout';
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
@@ -28,8 +29,8 @@ export const Dashboard: React.FC = () => {
         const [sum, ts, anom, recs, res] = await Promise.all([
           dashboardApi.getSummary(),
           dashboardApi.getTimeSeries(days),
-          dashboardApi.getAnomalies(5),
-          dashboardApi.getRecommendations(3),
+          dashboardApi.getAnomalies({ limit: 5 }),
+          dashboardApi.getRecommendations({ limit: 3 }),
           dashboardApi.getResources()
         ]);
         setSummary(sum);

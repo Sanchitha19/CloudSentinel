@@ -1,5 +1,5 @@
 import { apiClient as api } from './client';
-import { ServiceCost, CostDataPoint, CloudResource } from '../types/provider';
+import type { ServiceCost, CostDataPoint, CloudResource } from '../types/provider';
 
 export interface CostSummary {
   currentMonthTotal: number;

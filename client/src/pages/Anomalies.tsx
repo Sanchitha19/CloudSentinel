@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { dashboardApi, Anomaly } from '../api/dashboard';
-import { CostDataPoint } from '../types/provider';
+import { dashboardApi } from '../api/dashboard';
+import type { Anomaly } from '../api/dashboard';
+import type { CostDataPoint } from '../types/provider';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceDot } from 'recharts';
 import { AlertCircle, CheckCircle, X, Search, Activity, Zap } from 'lucide-react';
 import { RefreshContext } from '../components/Layout/Layout';
@@ -96,8 +97,8 @@ export const Anomalies: React.FC = () => {
     try {
       const updated = await dashboardApi.updateAnomaly(id, action);
       // Optimistic URL
-      setAnomalies(prev => prev.map(a => a.id === id ? { ...a, status: updated.status } : a));
-      if (selectedAnomaly?.id === id) setSelectedAnomaly(prev => prev ? { ...prev, status: updated.status } : null);
+      setAnomalies(prev => prev.map(a => a.id === id ? { ...a, status: updated.status as any } : a));
+      if (selectedAnomaly?.id === id) setSelectedAnomaly(prev => prev ? { ...prev, status: updated.status as any } : null);
     } catch (e) {
       console.error(e);
     }

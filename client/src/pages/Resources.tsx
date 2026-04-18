@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { dashboardApi, Recommendation } from '../api/dashboard';
-import { CloudResource } from '../types/provider';
+import { dashboardApi } from '../api/dashboard';
+import type { Recommendation } from '../api/dashboard';
+import type { CloudResource } from '../types/provider';
 import { Server, Database, HardDrive, Zap, Globe, Search, CheckCircle, XCircle, ArrowUpRight, Filter } from 'lucide-react';
 import { RefreshContext } from '../components/Layout/Layout';
 
@@ -84,7 +85,7 @@ export const Resources: React.FC = () => {
   const handleRecAction = async (id: number, status: 'applied' | 'dismissed') => {
     try {
       const updated = await dashboardApi.updateRecommendation(id, status);
-      setRecommendations(prev => prev.map(r => r.id === id ? { ...r, status: updated.status } : r));
+      setRecommendations(prev => prev.map(r => r.id === id ? { ...r, status: updated.status as any } : r));
     } catch(e) {
       console.error("Action failed", e);
     }
