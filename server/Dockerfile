@@ -4,4 +4,4 @@ COPY . .
 RUN npm install
 WORKDIR /app/server
 RUN npm install
-CMD ["npx", "ts-node", "./src/index.ts"]
+CMD ["npx", "tsx", "./src/index.ts"]
