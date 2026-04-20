@@ -1,9 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/db';
+import { validateDate } from '../middleware/validate';
 
 export const eventRouter = Router();
 
-eventRouter.get('/', async (req: Request, res: Response) => {
+eventRouter.get('/', 
+  validateDate(['startDate', 'endDate']),
+  async (req: Request, res: Response) => {
   try {
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;

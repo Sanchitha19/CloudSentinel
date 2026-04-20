@@ -1,16 +1,19 @@
 import express, { Request, Response } from 'express';
+import helmet from 'helmet';
 import { apiRouter } from './routes';
 import { migrate } from './db/migrate';
 import { seed } from './db/seed';
 import { startJob } from './jobs/anomalyJob';
+import { generalLimiter } from './middleware/rateLimiter';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+app.use(helmet());
 app.use(express.json());
 
 // Main API routes
-app.use('/api', apiRouter);
+app.use('/api', generalLimiter, apiRouter);
 
 app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok' });

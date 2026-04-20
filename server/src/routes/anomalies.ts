@@ -1,9 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/db';
+import { writeLimiter } from '../middleware/rateLimiter';
+import { validateId, validateEnum } from '../middleware/validate';
 
 export const anomalyRouter = Router();
 
-anomalyRouter.get('/', async (req: Request, res: Response) => {
+anomalyRouter.get('/', 
+  validateEnum('status', ['detected', 'acknowledged', 'resolved']),
+  validateEnum('severity', ['low', 'medium', 'high', 'critical']),
+  async (req: Request, res: Response) => {
   try {
     const status = req.query.status as string;
     const severity = req.query.severity as string;
@@ -33,14 +38,14 @@ anomalyRouter.get('/', async (req: Request, res: Response) => {
   }
 });
 
-anomalyRouter.patch('/:id', async (req: Request, res: Response): Promise<any> => {
+anomalyRouter.patch('/:id', 
+  writeLimiter,
+  validateId('id'),
+  validateEnum('status', ['acknowledged', 'resolved'], 'body'),
+  async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id as string;
     const status = req.body.status as string;
-    
-    if (!status || !['acknowledged', 'resolved'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status update. Use acknowledged or resolved.' });
-    }
     
     const result = await pool.query(
       'UPDATE anomalies SET status = $1 WHERE id = $2 RETURNING *',

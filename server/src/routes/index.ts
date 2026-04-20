@@ -5,7 +5,11 @@ import { resourceRouter } from './resources';
 import { recommendationRouter } from './recommendations';
 import { eventRouter } from './events';
 
+import { generalLimiter } from '../middleware/rateLimiter';
+
 export const apiRouter = Router();
+
+apiRouter.use(generalLimiter);
 
 apiRouter.use('/costs', costRouter);
 apiRouter.use('/anomalies', anomalyRouter);

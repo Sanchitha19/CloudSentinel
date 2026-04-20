@@ -1,9 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/db';
+import { writeLimiter } from '../middleware/rateLimiter';
+import { validateId, validateEnum } from '../middleware/validate';
 
 export const recommendationRouter = Router();
 
-recommendationRouter.get('/', async (req: Request, res: Response) => {
+recommendationRouter.get('/', 
+  validateEnum('priority', ['low', 'medium', 'high']),
+  validateEnum('status', ['pending', 'applied', 'dismissed']),
+  async (req: Request, res: Response) => {
   try {
     const priority = req.query.priority as string;
     const status = req.query.status as string;
@@ -31,14 +36,14 @@ recommendationRouter.get('/', async (req: Request, res: Response) => {
   }
 });
 
-recommendationRouter.patch('/:id', async (req: Request, res: Response): Promise<any> => {
+recommendationRouter.patch('/:id', 
+  writeLimiter,
+  validateId('id'),
+  validateEnum('status', ['applied', 'dismissed'], 'body'),
+  async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id as string;
     const status = req.body.status as string;
-    
-    if (!status || !['applied', 'dismissed'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status update. Use applied or dismissed.' });
-    }
     
     const result = await pool.query(
       'UPDATE recommendations SET status = $1 WHERE id = $2 RETURNING *',
