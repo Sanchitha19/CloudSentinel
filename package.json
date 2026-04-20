@@ -1,0 +1,13 @@
+{
+  "name": "cloudsentinel-monorepo",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "start": "npm start --prefix server"
+  }
+}
