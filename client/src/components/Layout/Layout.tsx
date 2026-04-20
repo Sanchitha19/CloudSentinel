@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, AlertTriangle, Server, Lightbulb, Activity, 
@@ -7,6 +7,33 @@ import {
 import { dashboardApi } from '../../api/dashboard';
 
 export const RefreshContext = React.createContext<{ refreshKey: number }>({ refreshKey: 0 });
+
+const NavItem = ({ to, icon: Icon, label, badgeCount, badgeColor, isCollapsed, location }: any) => {
+  const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
+  return (
+    <Link to={to} className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 mb-2
+      ${isActive ? 'bg-[#2A2D3E] text-blue-400 border border-blue-500/20 shadow-inner' : 'text-gray-400 border border-transparent hover:bg-[#202330] hover:text-gray-200'}
+      ${isCollapsed ? 'justify-center' : ''}`}
+    >
+      <div className="relative shrink-0">
+        <Icon size={22} className={isActive ? 'text-blue-500' : ''} />
+        {isCollapsed && badgeCount > 0 && (
+          <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${badgeColor}`}></span>
+        )}
+      </div>
+      {!isCollapsed && (
+        <div className="flex-1 flex justify-between items-center whitespace-nowrap overflow-hidden">
+          <span className="font-medium text-sm tracking-wide">{label}</span>
+          {badgeCount > 0 && (
+            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}`}>
+              {badgeCount}
+            </span>
+          )}
+        </div>
+      )}
+    </Link>
+  );
+};
 
 export const Layout: React.FC = () => {
   console.log("Layout rendering...");
@@ -46,33 +73,6 @@ export const Layout: React.FC = () => {
 
   const isStale = (currentTime.getTime() - lastRefreshed.getTime()) > 5 * 60 * 1000;
 
-  const NavItem = ({ to, icon: Icon, label, badgeCount, badgeColor }: any) => {
-    const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
-    return (
-      <Link to={to} className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 mb-2
-        ${isActive ? 'bg-[#2A2D3E] text-blue-400 border border-blue-500/20 shadow-inner' : 'text-gray-400 border border-transparent hover:bg-[#202330] hover:text-gray-200'}
-        ${isCollapsed ? 'justify-center' : ''}`}
-      >
-        <div className="relative shrink-0">
-          <Icon size={22} className={isActive ? 'text-blue-500' : ''} />
-          {isCollapsed && badgeCount > 0 && (
-            <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ${badgeColor}`}></span>
-          )}
-        </div>
-        {!isCollapsed && (
-          <div className="flex-1 flex justify-between items-center whitespace-nowrap overflow-hidden">
-            <span className="font-medium text-sm tracking-wide">{label}</span>
-            {badgeCount > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeColor}`}>
-                {badgeCount}
-              </span>
-            )}
-          </div>
-        )}
-      </Link>
-    );
-  };
-
   const getPageTitle = () => {
     const p = location.pathname;
     if (p.includes('anomalies')) return 'Anomalies Tracker';
@@ -98,11 +98,11 @@ export const Layout: React.FC = () => {
 
         {/* Links */}
         <nav className="flex-1 px-3 py-6 overflow-y-auto scrollbar-none">
-          <NavItem to="/" icon={LayoutDashboard} label="Dashboard" />
-          <NavItem to="/anomalies" icon={AlertTriangle} label="Anomalies" badgeCount={anomalyCount} badgeColor="bg-red-500 text-white" />
-          <NavItem to="/resources" icon={Server} label="Resources" />
-          <NavItem to="/resources?tab=recommendations" icon={Lightbulb} label="Recommendations" badgeCount={recCount} badgeColor="bg-yellow-500 text-yellow-900" />
-          <NavItem to="/events" icon={Activity} label="Events" />
+          <NavItem to="/" icon={LayoutDashboard} label="Dashboard" isCollapsed={isCollapsed} location={location} />
+          <NavItem to="/anomalies" icon={AlertTriangle} label="Anomalies" badgeCount={anomalyCount} badgeColor="bg-red-500 text-white" isCollapsed={isCollapsed} location={location} />
+          <NavItem to="/resources" icon={Server} label="Resources" isCollapsed={isCollapsed} location={location} />
+          <NavItem to="/resources?tab=recommendations" icon={Lightbulb} label="Recommendations" badgeCount={recCount} badgeColor="bg-yellow-500 text-yellow-900" isCollapsed={isCollapsed} location={location} />
+          <NavItem to="/events" icon={Activity} label="Events" isCollapsed={isCollapsed} location={location} />
         </nav>
 
         {/* Dynamic Provider Footer */}
@@ -132,7 +132,7 @@ export const Layout: React.FC = () => {
         
         {/* Router Viewport */}
         <div className="flex-1 overflow-y-auto min-h-0 relative">
-          <RefreshContext.Provider value={{ refreshKey }}>
+          <RefreshContext.Provider value={useMemo(() => ({ refreshKey }), [refreshKey])}>
              <Outlet />
           </RefreshContext.Provider>
         </div>

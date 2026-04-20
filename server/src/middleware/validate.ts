@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
 export const validateId = (paramName: string = 'id') => {
   return (req: Request, res: Response, next: NextFunction) => {
     const id = req.params[paramName];
-    if (!id || isNaN(Number(id)) || !Number.isInteger(Number(id))) {
+    if (!id || Number.isNaN(Number(id)) || !Number.isInteger(Number(id))) {
       return res.status(400).json({ error: `Invalid ${paramName} parameter. Must be an integer.` });
     }
     next();

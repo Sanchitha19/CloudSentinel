@@ -29,7 +29,7 @@ export class MockCloudProvider implements CloudProvider {
       end = new Date(endDate).getTime();
       start = new Date(startDate).getTime();
     } else {
-      end = new Date().getTime();
+      end = Date.now();
       start = end - 90 * 24 * 60 * 60 * 1000;
     }
     
@@ -46,11 +46,11 @@ export class MockCloudProvider implements CloudProvider {
         
         // Spikes for variance
         if (dayOfMonth === 15) {
-          baseCost *= randomRange(2.5, 4.0);
+          baseCost *= randomRange(2.5, 4);
         } else if (dayOfMonth >= 28) {
-          baseCost *= randomRange(1.5, 3.0);
+          baseCost *= randomRange(1.5, 3);
         } else if ((dayOfMonth + month) % 17 === 0) {
-          baseCost *= randomRange(3.0, 5.0);
+          baseCost *= randomRange(3, 5);
         }
         
         dataPoints.push({
@@ -85,9 +85,8 @@ export class MockCloudProvider implements CloudProvider {
 
   async getTopSpenders(limit: number): Promise<ServiceCost[]> {
     const services = await this.getCostByService('', '');
-    return services
-      .sort((a, b) => b.cost - a.cost)
-      .slice(0, limit);
+    const sorted = [...services].sort((a, b) => b.cost - a.cost);
+    return sorted.slice(0, limit);
   }
 
   async getResourceInventory(): Promise<CloudResource[]> {

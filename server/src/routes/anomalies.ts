@@ -27,7 +27,7 @@ anomalyRouter.get('/',
       query += ` AND severity = $${values.length}`;
     }
     
-    values.push(parseInt(limit, 10));
+    values.push(Number.parseInt(limit, 10));
     query += ` ORDER BY detected_at DESC LIMIT $${values.length}`;
     
     const result = await pool.query(query, values);
@@ -49,7 +49,7 @@ anomalyRouter.patch('/:id',
     
     const result = await pool.query(
       'UPDATE anomalies SET status = $1 WHERE id = $2 RETURNING *',
-      [status, parseInt(id, 10)]
+      [status, Number.parseInt(id, 10)]
     );
     
     if (result.rows.length === 0) {

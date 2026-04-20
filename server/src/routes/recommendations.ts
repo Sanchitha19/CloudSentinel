@@ -47,7 +47,7 @@ recommendationRouter.patch('/:id',
     
     const result = await pool.query(
       'UPDATE recommendations SET status = $1 WHERE id = $2 RETURNING *',
-      [status, parseInt(id, 10)]
+      [status, Number.parseInt(id, 10)]
     );
     
     if (result.rows.length === 0) {

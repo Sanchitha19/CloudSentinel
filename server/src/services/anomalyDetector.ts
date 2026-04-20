@@ -11,82 +11,104 @@ export interface DetectedAnomaly {
   root_cause_hint: string;
 }
 
-export async function detectAnomalies(service: string, dataPoints: CostDataPoint[]): Promise<DetectedAnomaly[]> {
-  const anomalies: DetectedAnomaly[] = [];
+/**
+ * Calculates mean, standard deviation, and flags points with Z-score > 2.5.
+ */
+function extractZScoreAnomalies(dataPoints: CostDataPoint[]): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < dataPoints.length; i++) {
+    const window = dataPoints.slice(Math.max(0, i - 30), i);
+    if (window.length < 2) continue;
+    const mean = window.reduce((sum, p) => sum + p.cost, 0) / window.length;
+    const variance = window.reduce((sum, p) => sum + Math.pow(p.cost - mean, 2), 0) / window.length;
+    const stdDev = Math.sqrt(variance);
+    const score = stdDev > 0 ? Math.abs(dataPoints[i].cost - mean) / stdDev : 0;
+    if (score > 2.5) indices.push(i);
+  }
+  return indices;
+}
 
-  // Ensure data points are sorted chronologically
+/**
+ * Flags points deviating more than 40% from 7-day rolling average.
+ */
+function extractMovingAverageAnomalies(dataPoints: CostDataPoint[]): number[] {
+  const indices: number[] = [];
+  for (let i = 0; i < dataPoints.length; i++) {
+    const window = dataPoints.slice(Math.max(0, i - 7), i);
+    if (window.length === 0) continue;
+    const mean = window.reduce((sum, p) => sum + p.cost, 0) / window.length;
+    const deviation = mean > 0 ? (Math.abs(dataPoints[i].cost - mean) / mean) * 100 : 0;
+    if (deviation > 40) indices.push(i);
+  }
+  return indices;
+}
+
+/**
+ * Returns 'low' | 'medium' | 'high' | 'critical' based on deviation thresholds.
+ */
+function classifySeverity(deviationPercent: number): 'low' | 'medium' | 'high' | 'critical' {
+  if (deviationPercent > 200) return 'critical';
+  if (deviationPercent >= 100) return 'high';
+  if (deviationPercent >= 60) return 'medium';
+  return 'low';
+}
+
+/**
+ * Queries system_events table for correlated events.
+ */
+async function getRootCauseHint(service: string, date: string): Promise<string> {
+  const query = `
+    SELECT description FROM system_events
+    WHERE service = $1
+    AND occurred_at >= $2::timestamp - interval '6 hours'
+    AND occurred_at <= $2::timestamp + interval '30 hours'
+  `;
+  const result = await pool.query(query, [service, date]);
+  
+  if (result.rows.length > 0) {
+    const events = result.rows.map(r => r.description).join(' | ');
+    return `Correlated events found: ${events}`;
+  }
+  
+  return "No correlated system event found. Possible causes: traffic spike, misconfiguration, or new resource provisioning.";
+}
+
+export async function detectAnomalies(service: string, dataPoints: CostDataPoint[]): Promise<DetectedAnomaly[]> {
   const sortedPoints = [...dataPoints].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
 
-  for (let i = 0; i < sortedPoints.length; i++) {
+  const zIndices = extractZScoreAnomalies(sortedPoints);
+  const maIndices = extractMovingAverageAnomalies(sortedPoints);
+  const allIndices = Array.from(new Set([...zIndices, ...maIndices])).sort((a, b) => a - b);
+
+  const anomalies: DetectedAnomaly[] = [];
+
+  for (const i of allIndices) {
     const point = sortedPoints[i];
-    const cost = point.cost;
-    const targetDate = new Date(point.date);
     
-    // 1. Z-Score method (Last 30 days trailing window)
+    // Re-calculate expected cost for reporting
     const zWindow = sortedPoints.slice(Math.max(0, i - 30), i);
-    let zMean = 0, zStdDev = 0, zScore = 0;
-    
-    if (zWindow.length >= 2) {
-      zMean = zWindow.reduce((sum, p) => sum + p.cost, 0) / zWindow.length;
-      const variance = zWindow.reduce((sum, p) => sum + Math.pow(p.cost - zMean, 2), 0) / zWindow.length;
-      zStdDev = Math.sqrt(variance);
-      zScore = zStdDev > 0 ? Math.abs(cost - zMean) / zStdDev : 0;
-    }
-
-    // 2. Moving Average method (7-day rolling trailing average)
     const maWindow = sortedPoints.slice(Math.max(0, i - 7), i);
-    let maMean = 0, maDeviation = 0;
     
-    if (maWindow.length > 0) {
-      maMean = maWindow.reduce((sum, p) => sum + p.cost, 0) / maWindow.length;
-      maDeviation = maMean > 0 ? (Math.abs(cost - maMean) / maMean) * 100 : 0;
-    }
+    const zMean = zWindow.length > 0 ? zWindow.reduce((sum, p) => sum + p.cost, 0) / zWindow.length : 0;
+    const maMean = maWindow.length > 0 ? maWindow.reduce((sum, p) => sum + p.cost, 0) / maWindow.length : 0;
 
-    const isZAnomaly = zScore > 2.5;
-    const isMaAnomaly = maDeviation > 40;
+    const isMaAnomaly = maIndices.includes(i);
+    const expectedCost = isMaAnomaly && maMean > 0 ? maMean : zMean;
+    const deviationPercent = expectedCost > 0 ? (Math.abs(point.cost - expectedCost) / expectedCost) * 100 : 100;
 
-    if (isZAnomaly || isMaAnomaly) {
-        // Evaluate combined expected cost
-        const expectedCost = isMaAnomaly && maMean > 0 ? maMean : zMean;
-        const deviationPercent = expectedCost > 0 ? (Math.abs(cost - expectedCost) / expectedCost) * 100 : 100;
-        
-        let severity: 'low' | 'medium' | 'high' | 'critical' = 'low';
-        if (deviationPercent > 200) severity = 'critical';
-        else if (deviationPercent >= 100) severity = 'high';
-        else if (deviationPercent >= 60) severity = 'medium';
-        else if (deviationPercent >= 40) severity = 'low';
-        else severity = 'low'; // Fallback if caught by Z-Score but deviation is technically small
-
-        // Query system events within ±6 hours of this targetDate (using start of day as anchor point, or covering the whole day bounding box)
-        const dateString = point.date; // assuming YYYY-MM-DD
-        const query = `
-          SELECT description FROM system_events
-          WHERE service = $1
-          AND occurred_at >= $2::timestamp - interval '6 hours'
-          AND occurred_at <= $2::timestamp + interval '30 hours'
-        `;
-        const result = await pool.query(query, [service, dateString]);
-        
-        let root_cause_hint = "No correlated system event found. Possible causes: traffic spike, misconfiguration, or new resource provisioning.";
-        
-        if (result.rows.length > 0) {
-          const events = result.rows.map(r => r.description).join(' | ');
-          root_cause_hint = `Correlated events found: ${events}`;
-        }
-
-        anomalies.push({
-          service,
-          detected_at: targetDate,
-          expected_cost: Number(expectedCost.toFixed(2)),
-          actual_cost: Number(cost.toFixed(2)),
-          deviation_percent: Number(deviationPercent.toFixed(2)),
-          severity,
-          root_cause_hint
-        });
-    }
+    anomalies.push({
+      service,
+      detected_at: new Date(point.date),
+      expected_cost: Number(expectedCost.toFixed(2)),
+      actual_cost: Number(point.cost.toFixed(2)),
+      deviation_percent: Number(deviationPercent.toFixed(2)),
+      severity: classifySeverity(deviationPercent),
+      root_cause_hint: await getRootCauseHint(service, point.date)
+    });
   }
 
   return anomalies;
 }
+

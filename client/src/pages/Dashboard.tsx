@@ -2,10 +2,10 @@ import React, { useEffect, useState, useMemo, useContext } from 'react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceDot, PieChart, Pie, Cell, Legend
 } from 'recharts';
-import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, Server, Zap, CheckCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, TrendingUp, TrendingDown, DollarSign, Server, Zap, CheckCircle } from 'lucide-react';
 import { dashboardApi } from '../api/dashboard';
 import type { CostSummary, Anomaly, Recommendation } from '../api/dashboard';
-import type { ServiceCost, CostDataPoint, CloudResource } from '../types/provider';
+import type { CostDataPoint, CloudResource } from '../types/provider';
 import { RefreshContext } from '../components/Layout/Layout';
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
@@ -107,7 +107,7 @@ export const Dashboard: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <KPI 
+        <KpiCard 
           title="Total Spend (Month)" 
           value={`$${summary?.currentMonthTotal.toLocaleString() || '0'}`}
           icon={<DollarSign size={20} className="text-blue-500" />}
@@ -118,19 +118,19 @@ export const Dashboard: React.FC = () => {
             </span>
           }
         />
-        <KPI 
+        <KpiCard 
           title="Active Anomalies" 
           value={anomalies.length.toString()}
           icon={<AlertTriangle size={20} className="text-amber-500" />}
           sub={<span className="text-gray-400 text-xs">Unresolved cost spikes detected</span>}
         />
-        <KPI 
+        <KpiCard 
           title="Potential Savings" 
           value={`$${recommendations.reduce((sum, r) => sum + Number(r.estimated_savings), 0).toLocaleString()}`}
           icon={<TrendingDown size={20} className="text-green-500" />}
           sub={<span className="text-gray-400 text-xs">From {recommendations.length} recommendations</span>}
         />
-        <KPI 
+        <KpiCard 
           title="Flagged Resources" 
           value={flaggedResourcesCount.toString()}
           icon={<Server size={20} className="text-purple-500" />}
@@ -184,8 +184,8 @@ export const Dashboard: React.FC = () => {
                   nameKey="service"
                   stroke="none"
                 >
-                  {(summary?.breakdown || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[SERVICES.indexOf(entry.service) % COLORS.length] || '#ccc'} />
+                  {(summary?.breakdown || []).map((entry) => (
+                    <Cell key={`cell-${entry.service}`} fill={COLORS[SERVICES.indexOf(entry.service) % COLORS.length] || '#ccc'} />
                   ))}
                 </Pie>
                 <RechartsTooltip 
@@ -209,29 +209,41 @@ export const Dashboard: React.FC = () => {
           <div className="space-y-4">
             {anomalies.length === 0 ? (
                <p className="text-gray-500 text-center py-6 text-sm">No active anomalies detected.</p>
-            ) : anomalies.map(anom => (
-              <div key={anom.id} className="bg-[#242833] p-4 rounded-lg border-l-4 flex flex-col gap-2 transition-transform hover:scale-[1.01]" 
-                style={{ borderLeftColor: anom.severity === 'critical' ? '#ef4444' : anom.severity === 'high' ? '#f97316' : '#eab308' }}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium text-gray-100">{anom.service} Spike Detected</h3>
-                    <p className="text-xs text-gray-400 mb-1">{new Date(anom.detected_at).toLocaleDateString()} &middot; +{anom.deviation_percent}% deviation</p>
+            ) : anomalies.map(anom => {
+              const borderLeftColor = (() => {
+                if (anom.severity === 'critical') return '#ef4444';
+                if (anom.severity === 'high') return '#f97316';
+                return '#eab308';
+              })();
+              const severityTextColor = (() => {
+                if (anom.severity === 'critical') return 'text-red-400';
+                if (anom.severity === 'high') return 'text-orange-400';
+                return 'text-yellow-400';
+              })();
+              return (
+                <div key={anom.id} className="bg-[#242833] p-4 rounded-lg border-l-4 flex flex-col gap-2 transition-transform hover:scale-[1.01]" 
+                  style={{ borderLeftColor }}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-medium text-gray-100">{anom.service} Spike Detected</h3>
+                      <p className="text-xs text-gray-400 mb-1">{new Date(anom.detected_at).toLocaleDateString()} &middot; +{anom.deviation_percent}% deviation</p>
+                    </div>
+                    <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded bg-[#0f1117] ${severityTextColor}`}>
+                      {anom.severity}
+                    </span>
                   </div>
-                  <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded bg-[#0f1117] ${anom.severity === 'critical' ? 'text-red-400' : anom.severity === 'high' ? 'text-orange-400' : 'text-yellow-400'}`}>
-                    {anom.severity}
-                  </span>
+                  <p className="text-sm text-gray-300 bg-[#0f1117] p-3 rounded shadow-inner italic border border-gray-800">"{anom.root_cause_hint.substring(0, 100)}{anom.root_cause_hint.length > 100 ? '...' : ''}"</p>
+                  <div className="mt-2 flex gap-3">
+                    <button onClick={() => handleAction('anomaly', anom.id, 'acknowledged')} className="text-gray-400 hover:text-white text-xs flex items-center transition-colors">
+                      <CheckCircle size={14} className="mr-1" /> Acknowledge
+                    </button>
+                    <button onClick={() => handleAction('anomaly', anom.id, 'resolved')} className="text-green-500 hover:text-green-400 text-xs flex items-center transition-colors">
+                      <CheckCircle size={14} className="mr-1" /> Mark Resolved
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-300 bg-[#0f1117] p-3 rounded shadow-inner italic border border-gray-800">"{anom.root_cause_hint.substring(0, 100)}{anom.root_cause_hint.length > 100 ? '...' : ''}"</p>
-                <div className="mt-2 flex gap-3">
-                  <button onClick={() => handleAction('anomaly', anom.id, 'acknowledged')} className="text-gray-400 hover:text-white text-xs flex items-center transition-colors">
-                    <CheckCircle size={14} className="mr-1" /> Acknowledge
-                  </button>
-                  <button onClick={() => handleAction('anomaly', anom.id, 'resolved')} className="text-green-500 hover:text-green-400 text-xs flex items-center transition-colors">
-                    <CheckCircle size={14} className="mr-1" /> Mark Resolved
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -270,7 +282,14 @@ export const Dashboard: React.FC = () => {
   );
 };
 
-function KPI({ title, value, sub, icon }: { title: string, value: string | number, sub?: React.ReactNode, icon: React.ReactNode }) {
+type KpiProps = Readonly<{ 
+  title: string; 
+  value: string | number; 
+  sub?: React.ReactNode; 
+  icon: React.ReactNode; 
+}>;
+
+function KpiCard({ title, value, sub, icon }: KpiProps) {
   return (
     <div className="bg-[#1e212b] p-6 rounded-xl border border-gray-800 shadow-xl flex items-center relative overflow-hidden transition-all hover:-translate-y-1 hover:shadow-2xl">
       <div className="absolute top-0 left-0 w-1 h-full bg-blue-600 opacity-50"></div>

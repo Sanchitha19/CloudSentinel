@@ -127,21 +127,27 @@ export const Anomalies: React.FC = () => {
         <div className="flex flex-wrap gap-4 mb-6 bg-[#1e212b] p-4 rounded-xl border border-gray-800">
           <label className="flex flex-col text-sm text-gray-400 font-medium">
             Service
-            <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="mt-1 bg-[#0f1117] text-white p-2 rounded border border-gray-700 outline-none focus:border-blue-500">
-              {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            (
+              <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className="mt-1 bg-[#0f1117] text-white p-2 rounded border border-gray-700 outline-none focus:border-blue-500">
+                {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )
           </label>
           <label className="flex flex-col text-sm text-gray-400 font-medium">
             Severity
-            <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="mt-1 bg-[#0f1117] text-white p-2 rounded border border-gray-700 outline-none focus:border-blue-500">
-              {SEVERITIES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            (
+              <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="mt-1 bg-[#0f1117] text-white p-2 rounded border border-gray-700 outline-none focus:border-blue-500">
+                {SEVERITIES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )
           </label>
           <label className="flex flex-col text-sm text-gray-400 font-medium">
             Status
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="mt-1 bg-[#0f1117] text-white p-2 rounded border border-gray-700 outline-none focus:border-blue-500">
-              {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
+            (
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="mt-1 bg-[#0f1117] text-white p-2 rounded border border-gray-700 outline-none focus:border-blue-500">
+                {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            )
           </label>
         </div>
 
@@ -160,30 +166,30 @@ export const Anomalies: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {loading ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-gray-500">Loading anomalies...</td></tr>
-                ) : anomalies.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-gray-500">No anomalies found.</td></tr>
-                ) : anomalies.map(anom => (
-                  <tr 
-                    key={anom.id} 
-                    onClick={() => setSelectedAnomaly(anom)}
-                    className={`cursor-pointer transition-colors border-b border-gray-800 text-sm ${getRowColor(anom.severity, selectedAnomaly?.id === anom.id)}`}
-                  >
-                    <td className="p-4 font-medium text-gray-200">{anom.service}</td>
-                    <td className="p-4 text-gray-400">{new Date(anom.detected_at).toLocaleDateString()}</td>
-                    <td className="p-4 text-gray-300">
-                      <span className="font-semibold text-white">${anom.actual_cost}</span> <span className="text-xs">vs ${anom.expected_cost}</span>
-                    </td>
-                    <td className="p-4 font-bold text-red-400">+{anom.deviation_percent}%</td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${getBadgeColor(anom.severity)}`}>
-                        {anom.severity}
-                      </span>
-                    </td>
-                    <td className="p-4 text-gray-400 capitalize">{anom.status}</td>
-                  </tr>
-                ))}
+                {(() => {
+                  if (loading) return <tr><td colSpan={6} className="text-center py-8 text-gray-500">Loading anomalies...</td></tr>;
+                  if (anomalies.length === 0) return <tr><td colSpan={6} className="text-center py-8 text-gray-500">No anomalies found.</td></tr>;
+                  return anomalies.map(anom => (
+                    <tr 
+                      key={anom.id} 
+                      onClick={() => setSelectedAnomaly(anom)}
+                      className={`cursor-pointer transition-colors border-b border-gray-800 text-sm ${getRowColor(anom.severity, selectedAnomaly?.id === anom.id)}`}
+                    >
+                      <td className="p-4 font-medium text-gray-200">{anom.service}</td>
+                      <td className="p-4 text-gray-400">{new Date(anom.detected_at).toLocaleDateString()}</td>
+                      <td className="p-4 text-gray-300">
+                        <span className="font-semibold text-white">${anom.actual_cost}</span> <span className="text-xs">vs ${anom.expected_cost}</span>
+                      </td>
+                      <td className="p-4 font-bold text-red-400">+{anom.deviation_percent}%</td>
+                      <td className="p-4">
+                        <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${getBadgeColor(anom.severity)}`}>
+                          {anom.severity}
+                        </span>
+                      </td>
+                      <td className="p-4 text-gray-400 capitalize">{anom.status}</td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>
@@ -271,8 +277,8 @@ export const Anomalies: React.FC = () => {
                 <div>
                    <p className="text-orange-400 font-medium mb-3 flex items-center gap-2"><AlertCircle size={16}/> System Events Detected:</p>
                    <ul className="list-disc pl-5 space-y-1 text-gray-200">
-                     {selectedAnomaly.root_cause_hint.replace('Correlated events found: ', '').split(' | ').map((evt, i) => (
-                       <li key={i}>{evt}</li>
+                     {selectedAnomaly.root_cause_hint.replace('Correlated events found: ', '').split(' | ').map((evt) => (
+                       <li key={evt}>{evt}</li>
                      ))}
                    </ul>
                 </div>

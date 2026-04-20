@@ -3,7 +3,7 @@ import { MockCloudProvider } from '../providers/MockCloudProvider';
 
 export async function seed() {
   const checkResult = await pool.query(`SELECT COUNT(*) FROM cost_timeseries`);
-  if (parseInt(checkResult.rows[0].count) > 0) {
+  if (Number.parseInt(checkResult.rows[0].count) > 0) {
     console.log('Database already populated. Skipping seeding routine.');
     return;
   }
@@ -43,7 +43,7 @@ export async function seed() {
 
   } catch (error) {
     console.error('Seeding encountered an error. Attempting rollback...');
-    try { await pool.query('ROLLBACK'); } catch(e) {}
+    try { await pool.query('ROLLBACK'); } catch(e) { console.error('Rollback failed:', e); }
     console.error('Seeding failed:', error);
   }
 }

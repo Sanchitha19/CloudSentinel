@@ -62,7 +62,7 @@ costRouter.get('/timeseries', async (req: Request, res: Response) => {
 
 costRouter.get('/top-spenders', async (req: Request, res: Response) => {
   try {
-    const limit = parseInt((req.query.limit as string) || '5', 10);
+    const limit = Number.parseInt((req.query.limit as string) || '5', 10);
     const provider = getProvider();
     
     const topSpenders = await provider.getTopSpenders(limit);
